@@ -14,7 +14,6 @@ export const middlewareLogResponses: Middleware = (req: Request, res: Response, 
 };
 
 export function middlewareMetricsInc(req: Request, res: Response, next: NextFunction) {
-  console.log("Nowy handler middleware");
   configObject.fileserverHits += 1;
   next();
 }
