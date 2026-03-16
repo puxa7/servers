@@ -26,9 +26,20 @@ export async function handlerValidateChirp(req: Request, res: Response) {
   }
   
   if (body.length > 140) {
-    res.status(400).json({ error: "Chirp is too long" });
-    return;
+    throw new Error("Chirp is too long");
   }
   
-  res.status(200).json({ valid: true });
+  const profaneWords = ['kerfuffle', 'sharbert', 'fornax'];
+  const words = body.split(' ');
+  const cleanedWords = words.map(word => {
+    const wordLower = word.toLowerCase();
+    // Only replace if word contains ONLY letters (no punctuation)
+    if (/^[a-z]+$/i.test(word) && profaneWords.includes(wordLower)) {
+      return '****';
+    }
+    return word;
+  });
+  const cleanedBody = cleanedWords.join(' ');
+  
+  res.status(200).json({ cleanedBody });
 }
