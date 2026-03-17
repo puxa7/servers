@@ -1,5 +1,6 @@
 import { Request, Response } from "express";
 import { configObject } from "../config.js";
+import { BadRequestError } from "../errors.js";
 
 export function handlerMetrics(_req: Request, res: Response) {
   res.set("Content-Type", "text/html; charset=utf-8");
@@ -26,7 +27,7 @@ export async function handlerValidateChirp(req: Request, res: Response) {
   }
   
   if (body.length > 140) {
-    throw new Error("Chirp is too long");
+    throw new BadRequestError("Chirp is too long. Max length is 140");
   }
   
   const profaneWords = ['kerfuffle', 'sharbert', 'fornax'];

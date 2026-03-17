@@ -4,6 +4,7 @@ import { fileURLToPath } from "url";
 import { handlerReadiness } from "./api/readiness.js";
 import { middlewareLogResponses, middlewareMetricsInc } from "./api/middleware.js"
 import { handlerMetrics, handlerReset, handlerValidateChirp } from "./api/metrics.js";
+import { CustomError } from "./errors.js";
 
 const app = express();
 const PORT = 8080;
@@ -32,11 +33,14 @@ app.post("/api/validate_chirp", async (req: Request, res: Response, next: NextFu
 });
 
 // Error-handling middleware (must be last, after all routes and other middleware)
-app.use((err: Error, req: Request, res: Response, next: NextFunction) => {
-  console.log(err);
-  res.status(500).json({
-    error: "Something went wrong on our end"
-  });
+app.use((err: any, req: Request, res: Response, next: NextFunction) => {
+  if (err instanceof CustomError) {
+    res.status(err.status).send(err.message);
+    return;
+  }
+
+  console.error(err);
+  res.status(500).send("Something went wrong on our end");
 });
 
 app.listen(PORT, () => {
