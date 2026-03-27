@@ -1,10 +1,21 @@
 import express, { Request, Response, NextFunction } from "express";
 import path from "path";
 import { fileURLToPath } from "url";
+import postgres from "postgres";
+import { migrate } from "drizzle-orm/postgres-js/migrator"; 
+import { drizzle } from "drizzle-orm/postgres-js"; 
+
 import { handlerReadiness } from "./api/readiness.js";
 import { middlewareLogResponses, middlewareMetricsInc } from "./api/middleware.js"
-import { handlerMetrics, handlerReset, handlerValidateChirp } from "./api/metrics.js";
+import { handlerMetrics, handlerReset, handlerValidateChirp, handlerCreateUser } from "./api/metrics.js";
 import { CustomError } from "./errors.js";
+import { config } from "./config.js"; 
+
+// --- DODAJ TO TUTAJ ---
+const migrationClient = postgres(config.db.url, { max: 1 });
+await migrate(drizzle(migrationClient), config.db.migrationConfig);
+await migrationClient.end();
+// ----------------------
 
 const app = express();
 const PORT = 8080;
@@ -32,7 +43,15 @@ app.post("/api/validate_chirp", async (req: Request, res: Response, next: NextFu
   }
 });
 
-// Error-handling middleware (must be last, after all routes and other middleware)
+app.post("/api/users", async (req: Request, res: Response, next: NextFunction) => {
+  try {
+    await handlerCreateUser(req, res);
+  } catch (err) {
+    next(err);
+  }
+});
+
+
 app.use((err: any, req: Request, res: Response, next: NextFunction) => {
   if (err instanceof CustomError) {
     res.status(err.status).send(err.message);
