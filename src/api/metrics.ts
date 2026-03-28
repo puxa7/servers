@@ -2,6 +2,7 @@ import { Request, Response } from "express";
 import { config } from "../config.js";
 import { BadRequestError, ForbiddenError } from "../errors.js"; 
 import { createUser, deleteAllUsers } from "../db/queries/users.js"; 
+import { createChirp } from "../db/queries/chirps.js";
 
 
 export function handlerMetrics(_req: Request, res: Response) {
@@ -50,29 +51,42 @@ export async function handlerCreateUser(req: Request, res: Response) {
   });
 }
 
-export async function handlerValidateChirp(req: Request, res: Response) {
-  const body = req.body?.body;
-  
+
+export async function handlerCreateChirp(req: Request, res: Response) {
+  const { body, userId } = req.body;
+
   if (!body || typeof body !== "string") {
-    res.status(400).json({ error: "Body is required" });
-    return;
+    throw new BadRequestError("Body is required");
   }
-  
+  if (!userId || typeof userId !== "string") {
+    throw new BadRequestError("UserId is required");
+  }
+
+  // 1. Walidacja długości (zastępuje stary validate_chirp)
   if (body.length > 140) {
-    throw new BadRequestError("Chirp is too long. Max length is 140");
+    throw new BadRequestError("Chirp is too long");
   }
-  
+
+  // 2. Logika cenzury (przeniesiona ze starego handlera)
   const profaneWords = ['kerfuffle', 'sharbert', 'fornax'];
   const words = body.split(' ');
   const cleanedWords = words.map(word => {
     const wordLower = word.toLowerCase();
-    // Only replace if word contains ONLY letters (no punctuation)
-    if (/^[a-z]+$/i.test(word) && profaneWords.includes(wordLower)) {
+    if (profaneWords.includes(wordLower)) {
       return '****';
     }
     return word;
   });
   const cleanedBody = cleanedWords.join(' ');
-  
-  res.status(200).json({ cleanedBody });
+
+  // 3. Zapis do bazy z OCZYSZCZONYM body
+  const chirp = await createChirp({ body: cleanedBody, userId });
+
+  res.status(201).json({
+    id: chirp.id,
+    body: chirp.body,
+    userId: chirp.userId,
+    createdAt: chirp.createdAt,
+    updatedAt: chirp.updatedAt
+  });
 }

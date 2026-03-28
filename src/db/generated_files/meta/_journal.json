@@ -8,6 +8,13 @@
       "when": 1774284200726,
       "tag": "0000_smiling_darkstar",
       "breakpoints": true
+    },
+    {
+      "idx": 1,
+      "version": "7",
+      "when": 1774685135081,
+      "tag": "0001_loving_pepper_potts",
+      "breakpoints": true
     }
   ]
 }

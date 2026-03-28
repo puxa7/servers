@@ -7,7 +7,12 @@ import { drizzle } from "drizzle-orm/postgres-js";
 
 import { handlerReadiness } from "./api/readiness.js";
 import { middlewareLogResponses, middlewareMetricsInc } from "./api/middleware.js"
-import { handlerMetrics, handlerReset, handlerValidateChirp, handlerCreateUser } from "./api/metrics.js";
+import { 
+  handlerMetrics, 
+  handlerReset, 
+  handlerCreateUser,
+  handlerCreateChirp
+} from "./api/metrics.js";
 import { CustomError } from "./errors.js";
 import { config } from "./config.js"; 
 
@@ -31,18 +36,10 @@ app.use(express.json());
 app.use("/app", middlewareMetricsInc);   
 app.use("/app", express.static(publicDir));
 
-
 app.get("/api/healthz", handlerReadiness);
 app.get("/admin/metrics", handlerMetrics);
-app.post("/admin/reset", handlerReset);
-app.post("/api/validate_chirp", async (req: Request, res: Response, next: NextFunction) => {
-  try {
-    await handlerValidateChirp(req, res);
-  } catch (err) {
-    next(err);
-  }
-});
 
+app.post("/admin/reset", handlerReset);
 app.post("/api/users", async (req: Request, res: Response, next: NextFunction) => {
   try {
     await handlerCreateUser(req, res);
@@ -50,7 +47,13 @@ app.post("/api/users", async (req: Request, res: Response, next: NextFunction) =
     next(err);
   }
 });
-
+app.post("/api/chirps", async (req: Request, res: Response, next: NextFunction) => {
+  try {
+    await handlerCreateChirp(req, res);
+  } catch (err) {
+    next(err);
+  }
+});
 
 app.use((err: any, req: Request, res: Response, next: NextFunction) => {
   if (err instanceof CustomError) {
