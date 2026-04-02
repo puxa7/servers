@@ -3,6 +3,7 @@ import { config } from "../config.js";
 import { BadRequestError, ForbiddenError } from "../errors.js"; 
 import { createUser, deleteAllUsers } from "../db/queries/users.js"; 
 import { createChirp } from "../db/queries/chirps.js";
+import { getChirps } from "../db/queries/chirps.js"
 
 
 export function handlerMetrics(_req: Request, res: Response) {
@@ -89,4 +90,9 @@ export async function handlerCreateChirp(req: Request, res: Response) {
     createdAt: chirp.createdAt,
     updatedAt: chirp.updatedAt
   });
+}
+
+export async function handlerGetChirp(req: Request, res: Response){
+  const chirps = await getChirps();
+  res.status(200).json(chirps);
 }

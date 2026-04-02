@@ -1,7 +1,6 @@
 node_modules/
 dist/
 server.log
-instruction.txt
 drizzle.config.ts
 .env
-odpowiedz.txt
+test-db.ts

@@ -11,7 +11,8 @@ import {
   handlerMetrics, 
   handlerReset, 
   handlerCreateUser,
-  handlerCreateChirp
+  handlerCreateChirp,
+  handlerGetChirp
 } from "./api/metrics.js";
 import { CustomError } from "./errors.js";
 import { config } from "./config.js"; 
@@ -51,6 +52,14 @@ app.post("/api/chirps", async (req: Request, res: Response, next: NextFunction) 
   try {
     await handlerCreateChirp(req, res);
   } catch (err) {
+    next(err);
+  }
+});
+
+app.get("/api/chirps", async (req, res, next) => {
+  try {
+    await handlerGetChirp(req, res);
+  } catch (err){
     next(err);
   }
 });
