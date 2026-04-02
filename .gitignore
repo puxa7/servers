@@ -4,3 +4,4 @@ server.log
 drizzle.config.ts
 .env
 test-db.ts
+test-db2.ts

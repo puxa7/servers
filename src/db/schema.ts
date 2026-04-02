@@ -22,8 +22,7 @@ export const chirps = pgTable("chirps", {
   body: varchar("body", { length: 255 }).notNull(),
   userId: uuid("user_id")
     .notNull()
-    .references(() => users.id, { onDelete: "cascade" }), // Kluczowe!
+    .references(() => users.id, { onDelete: "cascade" })
 });
 
-export type Chirp = typeof chirps.$inferSelect;
 export type NewChirp = typeof chirps.$inferInsert;
