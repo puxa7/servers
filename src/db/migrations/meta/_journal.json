@@ -15,6 +15,13 @@
       "when": 1774685135081,
       "tag": "0001_loving_pepper_potts",
       "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "7",
+      "when": 1775148455049,
+      "tag": "0002_slippery_pretty_boy",
+      "breakpoints": true
     }
   ]
 }
