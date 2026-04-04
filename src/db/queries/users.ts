@@ -22,3 +22,4 @@ export async function getUserByEmail(email: string){
     .where(eq(users.email, email));
   return result
 }
+

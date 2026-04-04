@@ -8,17 +8,18 @@ import {
   UserNotAuthenticatedError,
 } from "./errors.js";
 
-export function middlewareLogResponse(
-  req: Request,
-  res: Response,
-  next: NextFunction,
-) {
+export function middlewareLogResponse(req: Request, res: Response, next: NextFunction) {
   res.on("finish", () => {
     const statusCode = res.statusCode;
 
     if (statusCode >= 300) {
       console.log(`[NON-OK] ${req.method} ${req.url} - Status: ${statusCode}`);
     }
+
+    if (statusCode >=200 && statusCode < 300){
+     console.log(`[OK] ${req.method} ${req.url} - Status: ${res.statusCode}`);
+    }
+
   });
 
   next();

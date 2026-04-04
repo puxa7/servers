@@ -1,69 +1,81 @@
-import argon2 from 'argon2';
+import argon2 from "argon2";
 import jwt from "jsonwebtoken";
-import type { JwtPayload } from 'jsonwebtoken';
+import type { JwtPayload } from "jsonwebtoken";
+import crypto from 'node:crypto';
 
-export async function hashPassword(password: string): Promise<string> {
-    try {
-        const hash = await argon2.hash(password);
-        return hash;
-    } catch (err) {
-        console.error('Błąd hashowania:', err);
-        throw err;
-    }
+import { BadRequestError, UserNotAuthenticatedError } from "./api/errors.js";
+import { Request } from "express";
 
+const TOKEN_ISSUER = "chirpy";
+
+export async function hashPassword(password: string) {
+  return argon2.hash(password);
 }
 
-export async function checkPasswordHash(password: string, hash: string): Promise<boolean> {
-    try {
-        if (await argon2.verify(hash, password)) {
-            // password match
-            return true;
-        } else {
-            // password did not match
-            return false;
-        }
-    } catch (err) {
-        // internal failure
-        console.error('verification error:', err);
-        throw err;
-    }
-    
+export async function checkPasswordHash(password: string, hash: string) {
+  if (!password) return false;
+  try {
+    return await argon2.verify(hash, password);
+  } catch {
+    return false;
+  }
 }
 
 type payload = Pick<JwtPayload, "iss" | "sub" | "iat" | "exp">;
 
-export function makeJWT(userID: string, expiresIn: number, secret: string): string {
+export function makeJWT(userID: string, expiresIn: number, secret: string) {
+  const issuedAt = Math.floor(Date.now() / 1000);
+  const expiresAt = issuedAt + expiresIn;
+  const token = jwt.sign(
+    {
+      iss: TOKEN_ISSUER,
+      sub: userID,
+      iat: issuedAt,
+      exp: expiresAt,
+    } satisfies payload,
+    secret,
+    { algorithm: "HS256" },
+  );
 
-    
-    const iat = Math.floor(Date.now()/1000); //time in seconds
-    const exp = iat + expiresIn;
-        
-
-    const tokenPayload: payload =  {
-        iss: "chirpy",
-        sub: userID,
-        iat: iat,
-        exp: exp
-    }
-
-    return jwt.sign(tokenPayload, secret);
+  return token;
 }
 
-export function validateJWT(tokenString: string, secret: string): string{
-    
-    const decoded = jwt.verify(tokenString, secret) as JwtPayload;
+export function validateJWT(tokenString: string, secret: string) {
+  let decoded: payload;
+  try {
+    decoded = jwt.verify(tokenString, secret) as JwtPayload;
+  } catch (e) {
+    throw new UserNotAuthenticatedError("Invalid token");
+  }
 
-    const userID = decoded.sub;
+  if (decoded.iss !== TOKEN_ISSUER) {
+    throw new UserNotAuthenticatedError("Invalid issuer");
+  }
 
-     if (typeof userID !== "string") {
-        throw new Error("Invalid token payload: missing subject");
-    }
+  if (!decoded.sub) {
+    throw new UserNotAuthenticatedError("No user ID in token");
+  }
 
-    return userID;
-
+  return decoded.sub;
 }
 
-//const hashed = await hashPassword('mojeHaslo123');
+export function getBearerToken(req: Request) {
+  const authHeader = req.get("Authorization");
+  if (!authHeader) {
+    throw new BadRequestError("Malformed authorization header");
+  }
 
-//const ok = await checkPasswordHash("mojeHaslo123", hashed)
-//console.log(ok);
+  return extractBearerToken(authHeader);
+}
+
+export function extractBearerToken(header: string) {
+  const splitAuth = header.split(" ");
+  if (splitAuth.length < 2 || splitAuth[0] !== "Bearer") {
+    throw new BadRequestError("Malformed authorization header");
+  }
+  return splitAuth[1];
+}
+
+export function makeRefreshToken(): string{
+  return crypto.randomBytes(32).toString('hex');
+}
