@@ -15,10 +15,12 @@ import {
   handlerChirpsCreate,
   handlerChirpsGet,
   handlerChirpsRetrieve,
+  handlerChirpsDelete
 } from "./api/chirps.js";
 import { config } from "./config.js";
-import { handlerUsersCreate } from "./api/users.js";
+import { handlerUsersCreate, handlerUsersUpdate } from "./api/users.js";
 import { handlerLogin, handlerRefresh, handlerRevoke } from "./api/auth.js";
+import { handlerPolkaWebhooks } from "./api/polka.js";
 
 
 const migrationClient = postgres(config.db.url, { max: 1 });
@@ -34,6 +36,15 @@ app.use("/app", middlewareMetricsInc, express.static("./src/app"));
 app.get("/api/healthz", (req, res, next) => {
   Promise.resolve(handlerReadiness(req, res)).catch(next);
 });
+
+app.put("/api/users", (req, res, next) => {
+  Promise.resolve(handlerUsersUpdate(req, res)).catch(next);
+});
+
+app.post("/api/polka/webhooks", (req, res, next) => {
+  Promise.resolve(handlerPolkaWebhooks(req, res)).catch(next);
+});
+
 app.get("/admin/metrics", (req, res, next) => {
   Promise.resolve(handlerMetrics(req, res)).catch(next);
 });
@@ -65,6 +76,10 @@ app.get("/api/chirps", (req, res, next) => {
 });
 app.get("/api/chirps/:chirpId", (req, res, next) => {
   Promise.resolve(handlerChirpsGet(req, res)).catch(next);
+});
+
+app.delete("/api/chirps/:chirpId", (req, res, next) => {
+  Promise.resolve(handlerChirpsDelete(req, res)).catch(next);
 });
 
 app.use(errorMiddleWare);

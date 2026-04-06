@@ -1,8 +1,8 @@
 import type { Request, Response } from "express";
 
 import { respondWithJSON } from "./json.js";
-import { createChirp, getChirp, getChirps } from "../db/queries/chirps.js";
-import { BadRequestError, NotFoundError } from "./errors.js";
+import { createChirp, getChirp, getChirps, deleteChirp } from "../db/queries/chirps.js";
+import { BadRequestError, NotFoundError, UserForbiddenError } from "./errors.js";
 import { getBearerToken, validateJWT } from "../auth.js";
 import { config } from "../config.js";
 
@@ -62,9 +62,40 @@ export async function handlerChirpsGet(req: Request, res: Response) {
   }
 
   const chirp = await getChirp(chirpId);
+
   if (!chirp) {
     throw new NotFoundError(`Chirp with chirpId: ${chirpId} not found`);
   }
 
   respondWithJSON(res, 200, chirp);
+}
+
+export async function handlerChirpsDelete(req: Request, res: Response) {
+  // 1. Pobierz ID ćwierka z parametrów URL
+  const { chirpId } = req.params;
+
+  if (typeof chirpId !== "string") {
+    throw new BadRequestError("Invalid chirp ID");
+  }
+
+  // 2. Pobierz i zweryfikuj token (Autentykacja)
+  const token = getBearerToken(req);
+  const userId = validateJWT(token, config.jwt.secret);
+
+  // 3. Znajdź ćwierk w bazie
+  const chirp = await getChirp(chirpId);
+
+  // 4. Jeśli nie istnieje -> 404
+  if (!chirp) {
+    throw new NotFoundError("Chirp not found");
+  }
+
+  // 5. Jeśli użytkownik nie jest autorem -> 403 (Autoryzacja)
+  if (chirp.userId !== userId) {
+    throw new UserForbiddenError("You are not the author of this chirp");
+  }
+
+  // 6. Usuń i zwróć 204
+  await deleteChirp(chirpId);
+  res.status(204).send();
 }
