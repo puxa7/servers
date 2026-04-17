@@ -49,9 +49,27 @@ function getCleanedBody(body: string, badWords: string[]) {
   return cleaned;
 }
 
-export async function handlerChirpsRetrieve(_: Request, res: Response) {
-  const chirps = await getChirps();
+export async function handlerChirpsRetrieve(req: Request, res: Response) {
+
+  const authorIdQuery = req.query.authorId;
+  const sortQuery = req.query.sort;
+
+  let authorId: string | undefined;
+  if (typeof authorIdQuery === "string") {
+    authorId = authorIdQuery;
+  }
+
+  const chirps = await getChirps(authorId);
+
+  if (sortQuery === "desc") {
+    chirps.sort((a, b) => b.createdAt.getTime() - a.createdAt.getTime());
+  } else {
+    // Domyślne sortowanie rosnące (asc)
+    chirps.sort((a, b) => a.createdAt.getTime() - b.createdAt.getTime());
+  }
+
   respondWithJSON(res, 200, chirps);
+
 }
 
 export async function handlerChirpsGet(req: Request, res: Response) {
