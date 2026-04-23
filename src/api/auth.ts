@@ -1,15 +1,25 @@
-import type { Request, Response } from "express";
 import { getUserByEmail } from "../db/queries/users.js";
-import { createRefreshToken, getRefreshToken, revokeRefreshToken } from "../db/queries/refresh_tokens.js";
-import { checkPasswordHash, makeJWT, makeRefreshToken, getBearerToken } from "../auth.js";
+import {
+  checkPasswordHash,
+  getBearerToken,
+  makeJWT,
+  makeRefreshToken,
+} from "../auth.js";
 import { respondWithJSON } from "./json.js";
 import { UserNotAuthenticatedError } from "./errors.js";
-import { config } from "../config.js";
+
+import type { Request, Response } from "express";
 import type { UserResponse } from "./users.js";
+import { config } from "../config.js";
+import {
+  revokeRefreshToken,
+  saveRefreshToken,
+  userForRefreshToken,
+} from "../db/queries/refresh.js";
 
 type LoginResponse = UserResponse & {
   token: string;
-  refreshToken: string; 
+  refreshToken: string;
 };
 
 export async function handlerLogin(req: Request, res: Response) {
@@ -17,23 +27,33 @@ export async function handlerLogin(req: Request, res: Response) {
     password: string;
     email: string;
   };
+
   const params: parameters = req.body;
 
   const user = await getUserByEmail(params.email);
-  if (!user || !(await checkPasswordHash(params.password, user.hashedPassword))) {
+  if (!user) {
     throw new UserNotAuthenticatedError("incorrect email or password");
   }
 
- const accessToken = makeJWT(user.id, config.jwt.defaultDuration, config.jwt.secret);
+  const matching = await checkPasswordHash(
+    params.password,
+    user.hashedPassword,
+  );
+  if (!matching) {
+    throw new UserNotAuthenticatedError("incorrect email or password");
+  }
 
-  const refreshTokenStr = makeRefreshToken();
-  const expiresIn60Days = new Date(Date.now() + 60 * 24 * 60 * 60 * 1000);
+  const accessToken = makeJWT(
+    user.id,
+    config.jwt.defaultDuration,
+    config.jwt.secret,
+  );
+  const refreshToken = makeRefreshToken();
 
-  await createRefreshToken({
-    token: refreshTokenStr,
-    userId: user.id,
-    expiresAt: expiresIn60Days,
-  });
+  const saved = await saveRefreshToken(user.id, refreshToken);
+  if (!saved) {
+    throw new UserNotAuthenticatedError("could not save refresh token");
+  }
 
   respondWithJSON(res, 200, {
     id: user.id,
@@ -42,40 +62,36 @@ export async function handlerLogin(req: Request, res: Response) {
     updatedAt: user.updatedAt,
     isChirpyRed: user.isChirpyRed,
     token: accessToken,
-    refreshToken: refreshTokenStr,
-  });
+    refreshToken: refreshToken,
+  } satisfies LoginResponse);
 }
 
 export async function handlerRefresh(req: Request, res: Response) {
+  let refreshToken = getBearerToken(req);
 
-  const tokenString = getBearerToken(req);
-
-  const dbToken = await getRefreshToken(tokenString);
-
-  if (!dbToken) {
-    throw new UserNotAuthenticatedError("Invalid refresh token");
-  }
-  
-  if (dbToken.revokedAt !== null) {
-    throw new UserNotAuthenticatedError("Refresh token has been revoked");
+  const result = await userForRefreshToken(refreshToken);
+  if (!result) {
+    throw new UserNotAuthenticatedError("invalid refresh token");
   }
 
-  if (dbToken.expiresAt < new Date()) {
-    throw new UserNotAuthenticatedError("Refresh token has expired");
-  }
+  const user = result.user;
+  const accessToken = makeJWT(
+    user.id,
+    config.jwt.defaultDuration,
+    config.jwt.secret,
+  );
 
-  const newAccessToken = makeJWT(dbToken.userId, config.jwt.defaultDuration, config.jwt.secret);
+  type response = {
+    token: string;
+  };
 
   respondWithJSON(res, 200, {
-    token: newAccessToken
-  });
+    token: accessToken,
+  } satisfies response);
 }
 
 export async function handlerRevoke(req: Request, res: Response) {
-
-  const tokenString = getBearerToken(req);
-
-  await revokeRefreshToken(tokenString);
-
+  const refreshToken = getBearerToken(req);
+  await revokeRefreshToken(refreshToken);
   res.status(204).send();
 }

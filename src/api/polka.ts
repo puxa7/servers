@@ -8,7 +8,7 @@ import { UserNotAuthenticatedError } from "./errors.js";
 export async function handlerPolkaWebhooks(req: Request, res: Response) {
 
       const apiKey = getAPIKey(req);
-  if (apiKey !== config.api.polkaKey) {
+  if (apiKey !== config.api.polkaApiKey) {
      throw new UserNotAuthenticatedError("Invalid API key");
   }
   

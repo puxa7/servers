@@ -10,9 +10,8 @@ type APIConfig = {
   fileServerHits: number;
   port: number;
   platform: string;
-  polkaKey: string; // Dodaj to pole
+  polkaApiKey: string;
 };
-
 
 type DBConfig = {
   url: string;
@@ -21,6 +20,7 @@ type DBConfig = {
 
 type JWTConfig = {
   defaultDuration: number;
+  refreshDuration: number;
   secret: string;
   issuer: string;
 };
@@ -44,7 +44,7 @@ export const config: Config = {
     fileServerHits: 0,
     port: Number(envOrThrow("PORT")),
     platform: envOrThrow("PLATFORM"),
-    polkaKey: envOrThrow("POLKA_KEY"),
+    polkaApiKey: envOrThrow("POLKA_KEY"),
   },
   db: {
     url: envOrThrow("DB_URL"),
@@ -52,6 +52,7 @@ export const config: Config = {
   },
   jwt: {
     defaultDuration: 60 * 60, // 1 hour in seconds
+    refreshDuration: 60 * 60 * 24 * 60 * 1000, // 60 days in milliseconds
     secret: envOrThrow("JWT_SECRET"),
     issuer: "chirpy",
   },

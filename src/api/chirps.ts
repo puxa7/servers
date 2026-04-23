@@ -1,15 +1,22 @@
 import type { Request, Response } from "express";
 
 import { respondWithJSON } from "./json.js";
-import { createChirp, getChirp, getChirps, deleteChirp } from "../db/queries/chirps.js";
-import { BadRequestError, NotFoundError, UserForbiddenError } from "./errors.js";
+import {
+  createChirp,
+  deleteChirp,
+  getChirp,
+  getChirps,
+} from "../db/queries/chirps.js";
+import {
+  BadRequestError,
+  NotFoundError,
+  UserForbiddenError,
+} from "./errors.js";
 import { getBearerToken, validateJWT } from "../auth.js";
 import { config } from "../config.js";
 
 export async function handlerChirpsCreate(req: Request, res: Response) {
-  type parameters = {
-    body: string;
-  };
+  type parameters = { body: string };
 
   const params: parameters = req.body;
 
@@ -50,26 +57,27 @@ function getCleanedBody(body: string, badWords: string[]) {
 }
 
 export async function handlerChirpsRetrieve(req: Request, res: Response) {
-
-  const authorIdQuery = req.query.authorId;
-  const sortQuery = req.query.sort;
-
-  let authorId: string | undefined;
+  let authorId = "";
+  let authorIdQuery = req.query.authorId;
   if (typeof authorIdQuery === "string") {
     authorId = authorIdQuery;
   }
 
   const chirps = await getChirps(authorId);
 
-  if (sortQuery === "desc") {
-    chirps.sort((a, b) => b.createdAt.getTime() - a.createdAt.getTime());
-  } else {
-    // Domyślne sortowanie rosnące (asc)
-    chirps.sort((a, b) => a.createdAt.getTime() - b.createdAt.getTime());
+  let sortDirection = "asc";
+  let sortDirectionParam = req.query.sort;
+  if (sortDirectionParam === "desc") {
+    sortDirection = "desc";
   }
 
-  respondWithJSON(res, 200, chirps);
+  chirps.sort((a, b) =>
+    sortDirection === "asc"
+      ? a.createdAt.getTime() - b.createdAt.getTime()
+      : b.createdAt.getTime() - a.createdAt.getTime(),
+  );
 
+  respondWithJSON(res, 200, chirps);
 }
 
 export async function handlerChirpsGet(req: Request, res: Response) {
@@ -80,7 +88,6 @@ export async function handlerChirpsGet(req: Request, res: Response) {
   }
 
   const chirp = await getChirp(chirpId);
-
   if (!chirp) {
     throw new NotFoundError(`Chirp with chirpId: ${chirpId} not found`);
   }
@@ -89,31 +96,28 @@ export async function handlerChirpsGet(req: Request, res: Response) {
 }
 
 export async function handlerChirpsDelete(req: Request, res: Response) {
-  // 1. Pobierz ID ćwierka z parametrów URL
   const { chirpId } = req.params;
 
   if (typeof chirpId !== "string") {
     throw new BadRequestError("Invalid chirp ID");
   }
 
-  // 2. Pobierz i zweryfikuj token (Autentykacja)
   const token = getBearerToken(req);
   const userId = validateJWT(token, config.jwt.secret);
 
-  // 3. Znajdź ćwierk w bazie
   const chirp = await getChirp(chirpId);
-
-  // 4. Jeśli nie istnieje -> 404
   if (!chirp) {
-    throw new NotFoundError("Chirp not found");
+    throw new NotFoundError(`Chirp with chirpId: ${chirpId} not found`);
   }
 
-  // 5. Jeśli użytkownik nie jest autorem -> 403 (Autoryzacja)
   if (chirp.userId !== userId) {
-    throw new UserForbiddenError("You are not the author of this chirp");
+    throw new UserForbiddenError("You can't delete this chirp");
   }
 
-  // 6. Usuń i zwróć 204
-  await deleteChirp(chirpId);
+  const deleted = await deleteChirp(chirpId);
+  if (!deleted) {
+    throw new Error(`Failed to delete chirp with chirpId: ${chirpId}`);
+  }
+
   res.status(204).send();
 }
